@@ -1,0 +1,76 @@
+{
+  "mappings": {
+    "mouse:shift+button:2:up": {
+      "action_type": "voice_toggle",
+      "action_value": "code",
+      "label": ""
+    },
+    "mouse:button:2:up": {
+      "action_type": "voice_toggle",
+      "action_value": "clean",
+      "label": ""
+    },
+    "mouse:cmd+button:2:up": {
+      "action_type": "voice_toggle",
+      "action_value": "raw",
+      "label": ""
+    },
+    "mouse:ctrl+button:2:up": {
+      "action_type": "voice_toggle",
+      "action_value": "context-code",
+      "label": "context code prompt"
+    },
+    "mouse:shift+cmd+button:2:up": {
+      "action_type": "voice_toggle",
+      "action_value": "expand",
+      "label": ""
+    }
+  },
+  "intents": {
+    "clean": {
+      "name": "clean",
+      "label": "Clean Up",
+      "prompt": "You are a speech-to-text cleanup tool. The user dictated something out loud.\nRemove unnecessary words \u2014 filler, false starts, repetition, verbal tics \u2014 while preserving\nthe user's exact meaning and phrasing. Do NOT rewrite, expand, or improve. Just clean.\n\nRules:\n- Remove: um, uh, like, you know, so, basically, I mean, kind of, sort of, right, actually\n- Remove false starts and repeated phrases\n- Fix obvious transcription errors\n- Keep the user's vocabulary, tone, and sentence structure\n- Output ONLY the cleaned text, nothing else",
+      "model": "claude-haiku-4-5-20251001",
+      "output": "paste"
+    },
+    "expand": {
+      "name": "expand",
+      "label": "Rewrite / Expand",
+      "prompt": "You are a writing assistant. The user dictated a rough thought out loud.\nRewrite and expand it into a clear, complete, contextually sensible piece of text.\n\nRules:\n- Capture the user's intent and develop it into a fuller thought\n- Fix grammar, structure, and flow\n- If the input is a fragment or keyword, expand it into a complete sentence or paragraph\n- If the input is a question, make it precise and well-formed\n- If the input is an instruction, make it clear and actionable\n- Maintain the user's voice \u2014 don't make it sound robotic\n- Output ONLY the rewritten text, nothing else \u2014 no quotes, no preamble",
+      "model": "claude-haiku-4-5-20251001",
+      "output": "paste"
+    },
+    "raw": {
+      "name": "raw",
+      "label": "Raw (no processing)",
+      "prompt": "",
+      "model": "",
+      "output": "paste"
+    },
+    "code": {
+      "name": "code",
+      "label": "Code Prompt",
+      "prompt": "You are a voice-to-prompt translator for Claude Code (a CLI coding assistant).\nThe user spoke a rough idea out loud. Your job is to convert their speech into a precise,\nwell-structured prompt that Claude Code will immediately understand and act on.\n\nRules:\n- Detect the user's intent: are they asking to build something, fix a bug, refactor, explain, research, or run a command?\n- Translate into the language Claude Code expects:\n  - Build requests \u2192 clear spec with requirements (\"Create a Python script that...\", \"Add a function to X that...\")\n  - Bug fixes \u2192 describe the symptom and where to look (\"The login flow fails when... check auth.py\")\n  - Refactoring \u2192 state what to change and why (\"Rename X to Y across the codebase\", \"Extract the validation logic into its own function\")\n  - Questions \u2192 precise technical questions (\"How does the event loop handle...\", \"What does X do in Y?\")\n  - Commands \u2192 direct instructions (\"Run the tests\", \"Commit with message...\", \"Push to main\")\n- Strip all filler, false starts, and verbal tics\n- Preserve technical terms, file names, function names, and specifics exactly as spoken\n- If the user mentions context (files, functions, errors), include it \u2014 Claude Code needs it\n- Use imperative voice \u2014 tell Claude what to do, not what you'd like\n- Output ONLY the prompt, nothing else \u2014 no quotes, no preamble, no explanation\n- Match complexity to input \u2014 a simple request stays one line, a complex one gets structure\n- NEVER ask for clarification \u2014 infer intent from context and produce the best prompt you can",
+      "model": "claude-haiku-4-5-20251001",
+      "output": "paste"
+    },
+    "context-code": {
+      "name": "context-code",
+      "label": "Context Code",
+      "prompt": "You are a voice-to-prompt translator for Claude Code (a CLI coding assistant).\nThe user spoke a rough idea out loud while working in an active coding session.\nYour job is to convert their speech into a precise prompt, informed by what they're currently working on.\n\nRules:\n- Use the session context to understand what the user is referring to \u2014 they may use shorthand,\n  refer to \"that file\" or \"the bug\" or \"what we just did\" without specifics\n- Resolve vague references using the session context (e.g., \"fix it\" \u2192 fix the specific thing in the context)\n- Detect the user's intent: build, fix, refactor, explain, research, or run a command\n- Strip all filler, false starts, and verbal tics\n- Preserve technical terms, file names, function names exactly as spoken\n- Use imperative voice \u2014 tell Claude what to do\n- Output ONLY the prompt, nothing else \u2014 no quotes, no preamble\n- Match complexity to input \u2014 a simple request stays one line\n- NEVER ask for clarification \u2014 infer from context and produce the best prompt you can",
+      "model": "claude-haiku-4-5-20251001",
+      "output": "paste",
+      "context": true
+    }
+  },
+  "word_corrections": {
+    "lord presume": "claude --resume",
+    "clod resume": "claude --resume",
+    "cloud resume": "claude --resume",
+    "plod resume": "claude --resume",
+    "claude.": "claude",
+    "clawed": "claude",
+    "annika": "Anneke"
+  }
+}

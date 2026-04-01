@@ -124,6 +124,18 @@ def record_audio_enter():
     return np.concatenate(frames)
 
 
+def preprocess_audio(audio):
+    """Clean audio for better transcription accuracy."""
+    audio_float = audio.astype(np.float32).flatten()
+    # Remove DC offset (kills low-frequency mic bias)
+    audio_float -= np.mean(audio_float)
+    # Peak normalization — use full dynamic range so Whisper gets a strong signal
+    peak = np.max(np.abs(audio_float))
+    if peak > 0:
+        audio_float = audio_float / peak * 32000
+    return audio_float.astype(np.int16)
+
+
 def save_wav(audio, path):
     """Write numpy audio array to wav file."""
     with wave.open(path, 'wb') as wf:
@@ -135,7 +147,7 @@ def save_wav(audio, path):
 
 def transcribe(wav_path):
     """Transcribe wav file with faster-whisper."""
-    model = WhisperModel("base", device="cpu", compute_type="int8")
+    model = WhisperModel("small", device="cpu", compute_type="int8")
     segments, _ = model.transcribe(wav_path)
     return " ".join(seg.text.strip() for seg in segments)
 
@@ -180,6 +192,7 @@ def main():
     # Save to temp file
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
         wav_path = f.name
+    audio = preprocess_audio(audio)
     save_wav(audio, wav_path)
 
     duration = len(audio) / SAMPLE_RATE

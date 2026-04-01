@@ -1,27 +1,33 @@
 # Session State
-**Updated:** 2026-03-29
-**Chat:** voice-pipeline-build
+**Updated:** 2026-04-01 11:00
+**Chat:** voice-pipeline-features
 
 ## Currently Working On
-MVP complete and tested. User wants to set up a global hotkey trigger — considering BetterTouchTool for visual hotkey assignment UI.
+Session complete.
 
 ## Done This Session
-- Found old voice pipeline project (stalled Mar 11 on macOS permission issues)
-- Diagnosed why it stalled — compound friction from Tk/pynput/permissions
-- Built minimal script: sounddevice → faster-whisper → Claude Haiku rewrite → pbcopy
-- User tested MVP and confirmed working
-- Added cost tracking (token count + $ per call)
-- Added app-aware context filtering (terminal → rewrite, other → raw passthrough)
-- Added auto-stop on 2s silence, --enter and --raw flags, cmux notifications
-- Alias `vp` added to .zshrc
-- Moved project to ~/projects/voice-pipeline/
+- Transcription log: saves to transcriptions.json (cap 10), Transcriptions tab with SSE live updates
+- Usage & Cost tab: stat cards + intent breakdown; persisted to usage.json across restarts
+- Word corrections: fuzzy matching, trailing punctuation consumed, whole vs partial modes
+- Corrections skip AI rewrite — corrected text is final output
+- Confused-response detection: Haiku meta-responses ("I'm ready to help...") auto-revert to raw
+- "Context Code" intent: reads SESSION_STATE.md from active cmux workspace (focus-aware)
+- Editable raw transcriptions: click to edit inline, reprocess uses edited text
+- Combine transcriptions: checkbox-select 2+, merge into one for reprocessing
+- Screenshot drag fix: all mouse-ups pass through event tap
+- Double-paste fix: Cmd+V skipped in terminal apps
+- Auto-open browser on daemon startup
+- Persistent usage stats in usage.json
 
 ## Next Steps
-- Install BetterTouchTool or grant Ghostty Accessibility permissions
-- Set up global hotkey to trigger `vp` from anywhere
-- Use daily and tune based on real friction, not speculation
+- Map a mouse button combo to "context-code" intent
+- Daily-drive and add Whisper mishearing corrections as discovered
+- Consider adding more confused-response signal phrases as they appear
 
 ## Key Decisions / Context
-- "Prove the payload before building the rocket" — validated rewrite quality before adding convenience
-- Silence threshold 500 RMS works for user's Blue Snowflake mic
-- No pynput/Tk/GUI — deliberate choice to avoid the permission wall that killed v1
+- Corrections: whole mode = entire input must match; partial = matches anywhere (for proper nouns)
+- Fuzzy matching normalizes punctuation; trailing periods/commas consumed by regex
+- All mouse-ups pass through event tap; Cmd+V auto-paste skipped in TERMINAL_APPS
+- Session context uses cmux workspace name so switching workspaces switches context
+- Corrections via UI are live immediately; Python code changes need daemon restart
+- Usage stats accumulate to usage.json on every transcription + reprocess, survive restarts

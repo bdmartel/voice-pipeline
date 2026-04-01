@@ -1,0 +1,2030 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Input Mapper</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0a0a0a;
+    --surface: #141414;
+    --surface2: #1e1e1e;
+    --border: #2a2a2a;
+    --text: #e0e0e0;
+    --text-dim: #888;
+    --accent: #ffd700;
+    --accent-dim: #b8960040;
+    --green: #4ade80;
+    --red: #f87171;
+    --blue: #60a5fa;
+    --orange: #fb923c;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* --- Header --- */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  header h1 {
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+
+  .status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--red);
+  }
+
+  .status-dot.connected {
+    background: var(--green);
+    box-shadow: 0 0 6px var(--green);
+  }
+
+  /* --- Device bar --- */
+  .device-bar {
+    display: flex;
+    gap: 8px;
+    padding: 10px 20px;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    background: var(--surface);
+  }
+
+  .device-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 11px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .device-chip .transport {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    background: var(--border);
+    color: var(--text-dim);
+  }
+
+  .device-chip .transport.bluetooth { color: var(--blue); border-color: var(--blue); }
+  .device-chip .transport.usb { color: var(--orange); border-color: var(--orange); }
+
+  /* --- Main layout --- */
+  .main {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* --- Event feed (left) --- */
+  .feed {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border);
+    min-width: 0;
+  }
+
+  .feed-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-dim);
+  }
+
+  .feed-controls {
+    display: flex;
+    gap: 8px;
+  }
+
+  .feed-controls button {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .feed-controls button:hover { border-color: var(--accent); color: var(--text); }
+  .feed-controls button.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+  .feed-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px 0;
+  }
+
+  .event-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 16px;
+    cursor: pointer;
+    transition: background 0.1s;
+    border-left: 3px solid transparent;
+  }
+
+  .event-row:hover { background: var(--surface2); }
+  .event-row.selected { background: var(--accent-dim); border-left-color: var(--accent); }
+  .event-row.mapped { }
+
+  .event-time {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    flex-shrink: 0;
+  }
+
+  .event-desc {
+    font-size: 13px;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .event-key {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    flex-shrink: 0;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .event-badge {
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    flex-shrink: 0;
+    font-weight: 500;
+  }
+
+  .event-badge.mapped {
+    background: rgba(74, 222, 128, 0.15);
+    color: var(--green);
+  }
+
+  /* --- Frozen event display --- */
+  .frozen-display {
+    padding: 20px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    min-height: 80px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+  }
+
+  .frozen-display.empty {
+    align-items: center;
+    color: var(--text-dim);
+    font-size: 13px;
+  }
+
+  .frozen-event-name {
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+
+  .frozen-event-key {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .frozen-event-time {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  /* --- Inspector (right) --- */
+  .inspector {
+    width: 340px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    overflow-y: auto;
+  }
+
+  .inspector-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-dim);
+  }
+
+  .inspector-empty {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-dim);
+    font-size: 13px;
+    padding: 20px;
+    text-align: center;
+  }
+
+  .inspector-content {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .insp-section {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .insp-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-dim);
+  }
+
+  .insp-value {
+    font-size: 14px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .mapping-status {
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+  }
+
+  .mapping-status.none {
+    background: var(--surface2);
+    border: 1px dashed var(--border);
+    color: var(--text-dim);
+  }
+
+  .mapping-status.active {
+    background: rgba(74, 222, 128, 0.1);
+    border: 1px solid rgba(74, 222, 128, 0.3);
+    color: var(--green);
+  }
+
+  /* --- Form elements --- */
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .form-group label {
+    font-size: 11px;
+    color: var(--text-dim);
+    font-weight: 500;
+  }
+
+  select, input[type="text"] {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  select:focus, input[type="text"]:focus {
+    border-color: var(--accent);
+  }
+
+  .btn {
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #000;
+    border-color: var(--accent);
+  }
+
+  .btn-primary:hover { opacity: 0.9; }
+
+  .btn-danger {
+    background: transparent;
+    color: var(--red);
+    border-color: var(--red);
+  }
+
+  .btn-danger:hover { background: rgba(248, 113, 113, 0.1); }
+
+  .btn-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .btn-row .btn { flex: 1; }
+
+  /* --- Scrollbar --- */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #444; }
+
+  /* --- Keycode picker --- */
+  .keycode-hint {
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  .capture-btn {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--blue);
+    background: rgba(96, 165, 250, 0.1);
+    color: var(--blue);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .capture-btn:hover { background: rgba(96, 165, 250, 0.2); }
+  .capture-btn.capturing {
+    animation: pulse 1s infinite;
+    border-color: var(--red);
+    color: var(--red);
+    background: rgba(248, 113, 113, 0.1);
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  /* --- Tabs --- */
+  .tab-bar {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .tab {
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 8px 20px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .tab-content { display: none; flex: 1; overflow: hidden; }
+  .tab-content.active { display: flex; }
+
+  /* --- Intent editor --- */
+  .intent-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+  }
+  .intent-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .intent-card:hover { border-color: #444; }
+  .intent-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .intent-card-title {
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .intent-card-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .intent-card-actions { display: flex; gap: 6px; }
+  .intent-card-actions button {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-dim);
+    cursor: pointer;
+  }
+  .intent-card-actions button:hover { border-color: var(--accent); color: var(--text); }
+  .intent-card-actions button.delete:hover { border-color: var(--red); color: var(--red); }
+  .intent-field {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .intent-field label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--text-dim);
+  }
+  .intent-field textarea {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    outline: none;
+    resize: vertical;
+    min-height: 80px;
+  }
+  .intent-field textarea:focus { border-color: var(--accent); }
+  .intent-field-row { display: flex; gap: 10px; }
+  .intent-field-row .intent-field { flex: 1; }
+  .new-intent-btn {
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px dashed var(--border);
+    background: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    margin: 0 12px 12px;
+  }
+  .new-intent-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* --- Transcription cards --- */
+  .tx-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .tx-card:hover { border-color: #444; }
+  .tx-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .tx-meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  .tx-intent-badge {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 3px;
+    background: rgba(74, 222, 128, 0.15);
+    color: var(--green);
+    font-weight: 500;
+  }
+  .tx-text-block {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .tx-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--text-dim);
+  }
+  .tx-text {
+    font-size: 13px;
+    line-height: 1.5;
+    padding: 8px;
+    background: var(--bg);
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: border-color 0.15s;
+    position: relative;
+  }
+  .tx-text:hover { border-color: var(--accent); }
+  .tx-text:active::after {
+    content: 'Copied!';
+    position: absolute;
+    top: 4px;
+    right: 8px;
+    font-size: 10px;
+    color: var(--accent);
+  }
+  .tx-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .tx-actions select {
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+  .tx-actions button {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .tx-actions button:hover { border-color: var(--accent); color: var(--text); }
+  .tx-actions button.delete:hover { border-color: var(--red); color: var(--red); }
+  .tx-copied {
+    font-size: 10px;
+    color: var(--accent);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .tx-copied.show { opacity: 1; }
+  .tx-empty {
+    padding: 40px;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 13px;
+  }
+  .tx-text[contenteditable="true"] {
+    cursor: text;
+    outline: none;
+  }
+  .tx-text[contenteditable="true"]:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+  .tx-select {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: var(--accent);
+    flex-shrink: 0;
+  }
+  .tx-card.selected-combine {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+  .tx-combine-bar {
+    display: none;
+    padding: 10px 12px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+  .tx-combine-bar.visible { display: flex; }
+  .tx-combine-bar button {
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    padding: 5px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: #000;
+    cursor: pointer;
+    font-weight: 500;
+  }
+  .tx-combine-bar button:hover { opacity: 0.9; }
+  .tx-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+  .tx-toolbar button {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text-dim);
+    cursor: pointer;
+  }
+  .tx-toolbar button:hover { border-color: var(--red); color: var(--red); }
+
+  /* --- Usage dashboard --- */
+  .usage-wrap {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+  }
+  .usage-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+  }
+  .usage-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .usage-card-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-dim);
+  }
+  .usage-card-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 24px;
+    font-weight: 700;
+  }
+  .usage-card-value.cost { color: var(--accent); }
+  .usage-card-value.tokens { color: var(--blue); }
+  .usage-card-value.count { color: var(--green); }
+  .usage-card-sub {
+    font-size: 11px;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .usage-section-title {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-dim);
+    margin-top: 8px;
+  }
+  .usage-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  .usage-table th {
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--text-dim);
+  }
+  .usage-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .usage-table tr:hover { background: var(--surface2); }
+  .usage-table .num { text-align: right; }
+  .usage-bar {
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border);
+    margin-top: 4px;
+  }
+  .usage-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: var(--accent);
+  }
+
+  /* --- Corrections --- */
+  .corr-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .corr-table th {
+    text-align: left;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--text-dim);
+  }
+  .corr-table td {
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .corr-table tr:hover { background: var(--surface2); }
+  .corr-table .arrow {
+    color: var(--text-dim);
+    text-align: center;
+    font-size: 14px;
+    width: 40px;
+  }
+  .corr-table .actions { width: 60px; text-align: right; }
+  .corr-table .actions button {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-dim);
+    cursor: pointer;
+  }
+  .corr-table .actions button:hover { border-color: var(--red); color: var(--red); }
+  .corr-add {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .corr-add input {
+    flex: 1;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+  }
+  .corr-add input:focus { border-color: var(--accent); outline: none; }
+  .corr-add button {
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--accent);
+    background: transparent;
+    color: var(--accent);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .corr-add button:hover { background: rgba(74, 222, 128, 0.1); }
+  .corr-empty {
+    padding: 30px;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 13px;
+  }
+  .corr-count {
+    font-size: 12px;
+    color: var(--text-dim);
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>INPUT MAPPER</h1>
+  <div class="status">
+    <div class="status-dot" id="statusDot"></div>
+    <span id="statusText">Connecting...</span>
+  </div>
+</header>
+
+<div class="device-bar" id="deviceBar">
+  <div class="device-chip" style="color:var(--text-dim)">Loading devices...</div>
+</div>
+
+<div class="tab-bar">
+  <button class="tab active" onclick="switchTab('events')">Events</button>
+  <button class="tab" onclick="switchTab('mappings')">Mappings</button>
+  <button class="tab" onclick="switchTab('intents')">Voice Intents</button>
+  <button class="tab" onclick="switchTab('transcriptions')">Transcriptions</button>
+  <button class="tab" onclick="switchTab('corrections')">Corrections</button>
+  <button class="tab" onclick="switchTab('usage')">Usage</button>
+</div>
+
+<div class="main">
+  <!-- Events tab -->
+  <div class="tab-content active" id="tab-events" style="display:flex; flex:1; overflow:hidden;">
+  <div class="feed">
+    <div class="frozen-display empty" id="frozenDisplay">
+      Do something — click, type, scroll — and it will appear here
+    </div>
+
+    <div class="feed-header">
+      <span>EVENT FEED</span>
+      <div class="feed-controls">
+        <button id="pauseBtn" onclick="togglePause()">Pause</button>
+        <button onclick="clearFeed()">Clear</button>
+      </div>
+    </div>
+
+    <div class="feed-list" id="feedList"></div>
+  </div>
+
+  <div class="inspector">
+    <div class="inspector-header">INSPECTOR</div>
+    <div class="inspector-empty" id="inspectorEmpty">
+      Click an event to inspect it
+    </div>
+    <div class="inspector-content" id="inspectorContent" style="display:none">
+      <div class="insp-section">
+        <div class="insp-label">Event</div>
+        <div class="insp-value" id="inspEvent">—</div>
+      </div>
+      <div class="insp-section">
+        <div class="insp-label">Event Key</div>
+        <div class="insp-value" id="inspKey" style="font-size:11px; word-break:break-all;">—</div>
+      </div>
+      <div class="insp-section">
+        <div class="insp-label">Current Mapping</div>
+        <div id="inspMapping"></div>
+      </div>
+      <hr style="border:none; border-top:1px solid var(--border);">
+      <div class="insp-section">
+        <div class="insp-label">Assign Action</div>
+        <div class="form-group">
+          <label>Action Type</label>
+          <select id="actionType" onchange="onActionTypeChange()">
+            <option value="block">Block (swallow event)</option>
+            <option value="keystroke">Keystroke</option>
+            <option value="shell">Shell Command</option>
+            <option value="shell_toggle">Shell Toggle (start/stop)</option>
+            <option value="voice_toggle">Voice Pipeline (toggle record)</option>
+          </select>
+        </div>
+        <div class="form-group" id="actionValueGroup" style="display:none;">
+          <label id="actionValueLabel">Value</label>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <input type="text" id="actionValue" placeholder="" style="flex:1;">
+            <button class="capture-btn" id="captureKeyBtn" onclick="toggleCaptureKey()" style="display:none;">
+              Capture Key
+            </button>
+          </div>
+          <div class="keycode-hint" id="actionHint"></div>
+        </div>
+        <div class="form-group">
+          <label>Label (optional)</label>
+          <input type="text" id="actionLabel" placeholder="e.g. Voice Pipeline">
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="saveMapping()">Save Mapping</button>
+      </div>
+      <div class="btn-row" id="detachRow" style="display:none;">
+        <button class="btn btn-danger" onclick="detachMapping()">Detach Mapping</button>
+      </div>
+    </div>
+  </div>
+  </div><!-- /tab-events -->
+
+  <!-- Mappings tab -->
+  <div class="tab-content" id="tab-mappings" style="width:100%;">
+    <div class="intent-list" id="mappingList"></div>
+  </div>
+
+  <!-- Intents tab -->
+  <div class="tab-content" id="tab-intents" style="width:100%;">
+    <div class="intent-list" id="intentList"></div>
+    <button class="new-intent-btn" onclick="addNewIntent()">+ New Intent</button>
+  </div>
+
+  <!-- Transcriptions tab -->
+  <div class="tab-content" id="tab-transcriptions" style="width:100%;flex-direction:column;">
+    <div class="tx-toolbar">
+      <span id="txCount">0 transcriptions</span>
+      <button onclick="clearTranscriptions()">Clear All</button>
+    </div>
+    <div class="tx-combine-bar" id="txCombineBar">
+      <span id="txCombineCount">0 selected</span>
+      <button onclick="combineSelected()">Combine into one</button>
+      <button onclick="clearSelection()" style="background:transparent;color:var(--text-dim);border-color:var(--border);">Cancel</button>
+    </div>
+    <div class="intent-list" id="txList" style="flex:1;overflow-y:auto;"></div>
+  </div>
+
+  <!-- Corrections tab -->
+  <div class="tab-content" id="tab-corrections" style="width:100%;flex-direction:column;overflow:visible;">
+    <div class="corr-count" id="corrCount">0 corrections</div>
+    <div style="flex:1;overflow-y:auto;min-height:0;">
+      <table class="corr-table">
+        <thead><tr><th>From (Whisper hears)</th><th class="arrow"></th><th>To (Correct)</th><th style="text-align:center;width:80px;">Mode</th><th class="actions"></th></tr></thead>
+        <tbody id="corrBody"></tbody>
+      </table>
+    </div>
+    <div class="corr-add" style="flex-shrink:0;">
+      <input type="text" id="corrFrom" placeholder="Wrong word/phrase...">
+      <span style="color:var(--text-dim);font-size:14px;">&rarr;</span>
+      <input type="text" id="corrTo" placeholder="Correct replacement...">
+      <label style="font-size:10px;color:var(--text-dim);display:flex;align-items:center;gap:4px;white-space:nowrap;cursor:pointer;" title="Match within longer sentences (for proper nouns). Default: whole input only.">
+        <input type="checkbox" id="corrMode" style="cursor:pointer;">
+        <span>in phrase</span>
+      </label>
+      <button onclick="addCorrection()">+ Add</button>
+    </div>
+  </div>
+
+  <!-- Usage tab -->
+  <div class="tab-content" id="tab-usage" style="width:100%;flex-direction:column;">
+    <div class="usage-wrap" id="usageWrap">
+      <div style="padding:40px;text-align:center;color:var(--text-dim);font-size:13px;">Loading usage data...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // --- State ---
+  let events = [];
+  let selectedEvent = null;
+  let paused = false;
+  let mappings = {};
+  let intents = {};
+  let capturingKey = false;
+  let eventSource = null;
+  let transcriptions = [];
+  let corrections = {};
+  let selectedTxIds = new Set();
+
+  // --- Init ---
+  async function init() {
+    await Promise.all([loadDevices(), loadMappings(), loadIntents(), loadRecentEvents(), loadTranscriptions(), loadCorrections()]);
+    connectSSE();
+  }
+
+  // --- API ---
+  async function loadDevices() {
+    try {
+      const res = await fetch('/api/devices');
+      const devs = await res.json();
+      renderDevices(devs);
+    } catch (e) {
+      console.error('Failed to load devices:', e);
+    }
+  }
+
+  async function loadMappings() {
+    try {
+      const res = await fetch('/api/mappings');
+      mappings = await res.json();
+    } catch (e) {
+      console.error('Failed to load mappings:', e);
+    }
+  }
+
+  async function loadIntents() {
+    try {
+      const res = await fetch('/api/intents');
+      intents = await res.json();
+    } catch (e) {
+      console.error('Failed to load intents:', e);
+    }
+  }
+
+  async function loadRecentEvents() {
+    try {
+      const res = await fetch('/api/events');
+      const recent = await res.json();
+      events = recent;
+      renderFeed();
+      if (events.length > 0) {
+        const last = events[events.length - 1];
+        renderFrozen(last);
+      }
+    } catch (e) {
+      console.error('Failed to load events:', e);
+    }
+  }
+
+  // --- SSE ---
+  function connectSSE() {
+    eventSource = new EventSource('/api/stream');
+
+    eventSource.onopen = () => {
+      document.getElementById('statusDot').classList.add('connected');
+      document.getElementById('statusText').textContent = 'Listening';
+    };
+
+    eventSource.onmessage = (e) => {
+      const evt = JSON.parse(e.data);
+      events.push(evt);
+      if (events.length > 200) events.shift();
+
+      // Update mappings cache
+      if (evt.mapped && evt.mapping) {
+        mappings[evt.key] = evt.mapping;
+      }
+
+      // Auto-update transcriptions tab
+      if (evt.key === 'transcription_added' && evt.transcription) {
+        transcriptions.push(evt.transcription);
+        const txTab = document.getElementById('tab-transcriptions');
+        if (txTab.classList.contains('active')) renderTranscriptions();
+      }
+
+      if (!paused) {
+        renderFrozen(evt);
+        renderFeed();
+      }
+    };
+
+    eventSource.onerror = () => {
+      document.getElementById('statusDot').classList.remove('connected');
+      document.getElementById('statusText').textContent = 'Disconnected';
+      setTimeout(connectSSE, 2000);
+    };
+  }
+
+  // --- Render ---
+  function renderDevices(devs) {
+    const bar = document.getElementById('deviceBar');
+    if (devs.length === 0) {
+      bar.innerHTML = '<div class="device-chip" style="color:var(--text-dim)">No devices found</div>';
+      return;
+    }
+    bar.innerHTML = devs.map(d => {
+      const isBT = d.transport.toLowerCase().includes('bluetooth');
+      const cls = isBT ? 'bluetooth' : 'usb';
+      const tag = isBT ? 'BT' : 'USB';
+      return `<div class="device-chip">
+        <span class="transport ${cls}">${tag}</span>
+        <span>${d.product}</span>
+        <span style="color:var(--text-dim);font-size:10px">${d.type}</span>
+      </div>`;
+    }).join('');
+  }
+
+  function renderFrozen(evt) {
+    const el = document.getElementById('frozenDisplay');
+    el.classList.remove('empty');
+    const mappingInfo = mappings[evt.key];
+    el.innerHTML = `
+      <div class="frozen-event-time">${evt.time}</div>
+      <div class="frozen-event-name">${esc(evt.description)}</div>
+      <div class="frozen-event-key">
+        ${esc(evt.key)}
+        ${mappingInfo ? `<span style="margin-left:10px;color:var(--green)">→ ${esc(mappingInfo.label || mappingInfo.action_type)}</span>` : ''}
+      </div>
+    `;
+  }
+
+  function renderFeed() {
+    const list = document.getElementById('feedList');
+    const wasAtBottom = list.scrollTop >= list.scrollHeight - list.clientHeight - 20;
+
+    // Render in reverse (newest first)
+    const visible = events.slice(-100).reverse();
+    list.innerHTML = visible.map((evt, i) => {
+      const idx = events.length - 1 - i;
+      const isSelected = selectedEvent && selectedEvent.key === evt.key &&
+                          selectedEvent.timestamp === evt.timestamp;
+      const isMapped = !!mappings[evt.key];
+      return `<div class="event-row ${isSelected ? 'selected' : ''} ${isMapped ? 'mapped' : ''}"
+                   onclick="selectEvent(${idx})">
+        <span class="event-time">${evt.time}</span>
+        <span class="event-desc">${esc(evt.description)}</span>
+        <span class="event-key">${esc(evt.key)}</span>
+        ${isMapped ? '<span class="event-badge mapped">MAPPED</span>' : ''}
+      </div>`;
+    }).join('');
+  }
+
+  function selectEvent(idx) {
+    selectedEvent = events[idx];
+    renderFeed();
+    renderInspector(selectedEvent);
+  }
+
+  function renderInspector(evt) {
+    if (!evt) {
+      document.getElementById('inspectorEmpty').style.display = 'flex';
+      document.getElementById('inspectorContent').style.display = 'none';
+      return;
+    }
+
+    document.getElementById('inspectorEmpty').style.display = 'none';
+    document.getElementById('inspectorContent').style.display = 'flex';
+
+    document.getElementById('inspEvent').textContent = evt.description;
+    document.getElementById('inspKey').textContent = evt.key;
+
+    const mapping = mappings[evt.key];
+    const mapEl = document.getElementById('inspMapping');
+    const detachRow = document.getElementById('detachRow');
+
+    if (mapping) {
+      mapEl.innerHTML = `<div class="mapping-status active">
+        <strong>${esc(mapping.action_type)}</strong>: ${esc(mapping.action_value || '(none)')}
+        ${mapping.label ? `<br><span style="color:var(--text-dim)">${esc(mapping.label)}</span>` : ''}
+      </div>`;
+      detachRow.style.display = 'flex';
+      // Pre-fill form with current mapping
+      document.getElementById('actionType').value = mapping.action_type;
+      document.getElementById('actionValue').value = mapping.action_value || '';
+      document.getElementById('actionLabel').value = mapping.label || '';
+      onActionTypeChange();
+    } else {
+      mapEl.innerHTML = '<div class="mapping-status none">No mapping assigned</div>';
+      detachRow.style.display = 'none';
+      document.getElementById('actionType').value = 'block';
+      document.getElementById('actionValue').value = '';
+      document.getElementById('actionLabel').value = '';
+      onActionTypeChange();
+    }
+  }
+
+  // --- Form ---
+  function onActionTypeChange() {
+    const type = document.getElementById('actionType').value;
+    const group = document.getElementById('actionValueGroup');
+    const label = document.getElementById('actionValueLabel');
+    const hint = document.getElementById('actionHint');
+    const captureBtn = document.getElementById('captureKeyBtn');
+    const input = document.getElementById('actionValue');
+
+    // Clean up intent select if switching away from voice_toggle
+    const oldSel = document.getElementById('intentSelect');
+    if (oldSel && type !== 'voice_toggle') { oldSel.remove(); }
+    const inputEl = document.getElementById('actionValue');
+    if (type !== 'voice_toggle') { inputEl.style.display = ''; }
+
+    if (type === 'block') {
+      group.style.display = 'none';
+    } else if (type === 'keystroke') {
+      group.style.display = 'flex';
+      label.textContent = 'Keycode (with optional modifiers)';
+      input.placeholder = 'e.g. 36 or cmd+36';
+      hint.textContent = 'Use "Capture Key" or enter: [mod+]keycode. Mods: cmd, opt, ctrl, shift';
+      captureBtn.style.display = 'block';
+    } else if (type === 'shell') {
+      group.style.display = 'flex';
+      label.textContent = 'Shell Command';
+      input.placeholder = 'e.g. vp or open -a Safari';
+      hint.textContent = 'Command runs in background via /bin/sh -c';
+      captureBtn.style.display = 'none';
+    } else if (type === 'shell_toggle') {
+      group.style.display = 'flex';
+      label.textContent = 'Shell Command (toggled)';
+      input.placeholder = 'e.g. vp --enter';
+      hint.textContent = 'First press starts the command. Second press kills it.';
+      captureBtn.style.display = 'none';
+    } else if (type === 'voice_toggle') {
+      group.style.display = 'flex';
+      label.textContent = 'Intent';
+      // Build intent dropdown as the value
+      const intentNames = Object.keys(intents);
+      const current = document.getElementById('actionValue').value || 'code';
+      input.style.display = 'none';
+      // Remove old intent select if exists
+      let sel = document.getElementById('intentSelect');
+      if (!sel) {
+        sel = document.createElement('select');
+        sel.id = 'intentSelect';
+        sel.style.cssText = input.style.cssText;
+        sel.style.display = '';
+        sel.style.flex = '1';
+        input.parentElement.insertBefore(sel, input);
+      }
+      sel.style.display = '';
+      sel.innerHTML = intentNames.map(n =>
+        `<option value="${n}" ${n === current ? 'selected' : ''}>${esc(intents[n].label || n)}</option>`
+      ).join('');
+      sel.onchange = () => { document.getElementById('actionValue').value = sel.value; };
+      document.getElementById('actionValue').value = current;
+      hint.textContent = 'Select which voice intent to use for this mapping';
+      captureBtn.style.display = 'none';
+    }
+  }
+
+  function toggleCaptureKey() {
+    capturingKey = !capturingKey;
+    const btn = document.getElementById('captureKeyBtn');
+    if (capturingKey) {
+      btn.textContent = 'Press a key...';
+      btn.classList.add('capturing');
+      // Listen for next key event in the feed
+      window._captureHandler = (e) => {
+        document.getElementById('actionValue').value = e.keyCode !== undefined ?
+          macKeycodeFromJS(e.code) : '0';
+        capturingKey = false;
+        btn.textContent = 'Capture Key';
+        btn.classList.remove('capturing');
+        document.removeEventListener('keydown', window._captureHandler);
+        e.preventDefault();
+      };
+      document.addEventListener('keydown', window._captureHandler);
+    } else {
+      btn.textContent = 'Capture Key';
+      btn.classList.remove('capturing');
+      if (window._captureHandler) {
+        document.removeEventListener('keydown', window._captureHandler);
+      }
+    }
+  }
+
+  // Rough JS key code → macOS keycode mapping
+  function macKeycodeFromJS(code) {
+    const map = {
+      'KeyA': '0', 'KeyS': '1', 'KeyD': '2', 'KeyF': '3', 'KeyH': '4',
+      'KeyG': '5', 'KeyZ': '6', 'KeyX': '7', 'KeyC': '8', 'KeyV': '9',
+      'KeyB': '11', 'KeyQ': '12', 'KeyW': '13', 'KeyE': '14', 'KeyR': '15',
+      'KeyY': '16', 'KeyT': '17',
+      'Digit1': '18', 'Digit2': '19', 'Digit3': '20', 'Digit4': '21',
+      'Digit5': '23', 'Digit6': '22', 'Digit7': '26', 'Digit8': '28',
+      'Digit9': '25', 'Digit0': '29',
+      'Enter': '36', 'KeyL': '37', 'KeyJ': '38', 'KeyK': '40',
+      'KeyN': '45', 'KeyM': '46', 'KeyO': '31', 'KeyU': '32',
+      'KeyI': '34', 'KeyP': '35',
+      'Tab': '48', 'Space': '49', 'Backspace': '51', 'Escape': '53',
+      'ArrowLeft': '123', 'ArrowRight': '124', 'ArrowDown': '125', 'ArrowUp': '126',
+      'F1': '122', 'F2': '120', 'F3': '99', 'F4': '118', 'F5': '96',
+      'F6': '97', 'F7': '98', 'F8': '100', 'F9': '101', 'F10': '109',
+      'F11': '103', 'F12': '111',
+    };
+    return map[code] || '0';
+  }
+
+  // --- Actions ---
+  async function saveMapping() {
+    if (!selectedEvent) return;
+
+    const body = {
+      event_key: selectedEvent.key,
+      action_type: document.getElementById('actionType').value,
+      action_value: document.getElementById('actionValue').value,
+      label: document.getElementById('actionLabel').value,
+    };
+
+    const res = await fetch('/api/mappings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      mappings[body.event_key] = data.mapping;
+      renderInspector(selectedEvent);
+      renderFeed();
+      renderFrozen(selectedEvent);
+    }
+  }
+
+  async function detachMapping() {
+    if (!selectedEvent) return;
+
+    const res = await fetch('/api/mappings/' + encodeURIComponent(selectedEvent.key), {
+      method: 'DELETE',
+    });
+
+    if (res.ok) {
+      delete mappings[selectedEvent.key];
+      renderInspector(selectedEvent);
+      renderFeed();
+      renderFrozen(selectedEvent);
+    }
+  }
+
+  function togglePause() {
+    paused = !paused;
+    const btn = document.getElementById('pauseBtn');
+    btn.textContent = paused ? 'Resume' : 'Pause';
+    btn.classList.toggle('active', paused);
+
+    if (paused && events.length > 0) {
+      // The click on Pause generated LeftMouseDown + LeftMouseUp events.
+      // Walk backwards past any recent left-mouse events at the tail
+      // to find the actual event the user wanted to freeze.
+      const tailTime = events[events.length - 1].timestamp;
+      let idx = events.length - 1;
+      while (idx >= 0) {
+        const evt = events[idx];
+        const isClickEvent = evt.type === 'LeftMouseDown' || evt.type === 'LeftMouseUp';
+        const isRecent = (tailTime - evt.timestamp) < 0.5;
+        if (isClickEvent && isRecent) {
+          idx--;
+        } else {
+          break;
+        }
+      }
+      if (idx >= 0) {
+        renderFrozen(events[idx]);
+        selectedEvent = events[idx];
+        renderInspector(events[idx]);
+      }
+      renderFeed();
+    }
+  }
+
+  function clearFeed() {
+    events = [];
+    selectedEvent = null;
+    renderFeed();
+    renderInspector(null);
+    const el = document.getElementById('frozenDisplay');
+    el.classList.add('empty');
+    el.innerHTML = 'Do something — click, type, scroll — and it will appear here';
+  }
+
+  function esc(s) {
+    if (!s) return '';
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  // --- Tabs ---
+  function switchTab(name) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => {
+      t.classList.remove('active');
+      t.style.display = '';
+    });
+    const tab = document.querySelector(`.tab-content#tab-${name}`);
+    tab.classList.add('active');
+    tab.style.display = 'flex';
+    event.target.classList.add('active');
+    if (name === 'intents') renderIntents();
+    if (name === 'mappings') renderMappings();
+    if (name === 'transcriptions') renderTranscriptions();
+    if (name === 'corrections') renderCorrections();
+    if (name === 'usage') loadAndRenderUsage();
+  }
+
+  // --- Mappings Tab ---
+  function renderMappings() {
+    const list = document.getElementById('mappingList');
+    const keys = Object.keys(mappings);
+    if (keys.length === 0) {
+      list.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-dim);font-size:13px;">No mappings yet. Go to the Events tab, click an event, and assign an action.</div>';
+      return;
+    }
+    list.innerHTML = keys.map(key => {
+      const m = mappings[key];
+      const typeName = {
+        block: 'Block', keystroke: 'Keystroke', shell: 'Shell',
+        shell_toggle: 'Shell Toggle', voice_toggle: 'Voice Pipeline'
+      }[m.action_type] || m.action_type;
+      const intentLabel = m.action_type === 'voice_toggle' && intents[m.action_value]
+        ? intents[m.action_value].label : '';
+      const detail = m.action_type === 'voice_toggle'
+        ? (intentLabel || m.action_value || 'code')
+        : (m.action_value || '—');
+      return `<div class="intent-card">
+        <div class="intent-card-header">
+          <div>
+            <div class="intent-card-title">${esc(m.label || key)}</div>
+            <div class="intent-card-name">${esc(key)}</div>
+          </div>
+          <div class="intent-card-actions">
+            <button onclick="toggleEditMapping('${esc(key)}')">Edit</button>
+            <button class="delete" onclick="deleteMappingFromTab('${esc(key)}')">Delete</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;font-size:12px;">
+          <span style="color:var(--text-dim)">Type:</span>
+          <span style="color:var(--green)">${esc(typeName)}</span>
+          <span style="color:var(--text-dim)">Value:</span>
+          <span>${esc(detail)}</span>
+        </div>
+        <div id="mapping-edit-${CSS.escape(key)}" style="display:none;flex-direction:column;gap:8px;">
+          <div class="intent-field">
+            <label>Action Type</label>
+            <select id="medit-type-${CSS.escape(key)}" onchange="onMappingEditTypeChange('${esc(key)}')"
+              style="font-family:'JetBrains Mono',monospace;font-size:11px;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);">
+              <option value="block" ${m.action_type==='block'?'selected':''}>Block</option>
+              <option value="keystroke" ${m.action_type==='keystroke'?'selected':''}>Keystroke</option>
+              <option value="shell" ${m.action_type==='shell'?'selected':''}>Shell Command</option>
+              <option value="shell_toggle" ${m.action_type==='shell_toggle'?'selected':''}>Shell Toggle</option>
+              <option value="voice_toggle" ${m.action_type==='voice_toggle'?'selected':''}>Voice Pipeline</option>
+            </select>
+          </div>
+          <div class="intent-field" id="medit-val-group-${CSS.escape(key)}">
+            <label>Value</label>
+            <input type="text" id="medit-val-${CSS.escape(key)}" value="${esc(m.action_value || '')}"
+              style="font-family:'JetBrains Mono',monospace;font-size:12px;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);outline:none;">
+          </div>
+          <div class="intent-field">
+            <label>Label</label>
+            <input type="text" id="medit-label-${CSS.escape(key)}" value="${esc(m.label || '')}"
+              style="font-family:'JetBrains Mono',monospace;font-size:12px;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);outline:none;">
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-primary" onclick="saveMappingFromTab('${esc(key)}')">Save</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function toggleEditMapping(key) {
+    const el = document.getElementById(`mapping-edit-${CSS.escape(key)}`);
+    el.style.display = el.style.display === 'none' ? 'flex' : 'none';
+  }
+
+  function onMappingEditTypeChange(key) {}
+
+  async function saveMappingFromTab(key) {
+    const body = {
+      event_key: key,
+      action_type: document.getElementById(`medit-type-${CSS.escape(key)}`).value,
+      action_value: document.getElementById(`medit-val-${CSS.escape(key)}`).value,
+      label: document.getElementById(`medit-label-${CSS.escape(key)}`).value,
+    };
+    const res = await fetch('/api/mappings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      mappings[key] = data.mapping;
+      renderMappings();
+    }
+  }
+
+  async function deleteMappingFromTab(key) {
+    const res = await fetch('/api/mappings/' + encodeURIComponent(key), { method: 'DELETE' });
+    if (res.ok) {
+      delete mappings[key];
+      renderMappings();
+      renderFeed();
+    }
+  }
+
+  // --- Intent Editor ---
+  function renderIntents() {
+    const list = document.getElementById('intentList');
+    const names = Object.keys(intents);
+    list.innerHTML = names.map(name => {
+      const i = intents[name];
+      return `<div class="intent-card" id="intent-card-${name}">
+        <div class="intent-card-header">
+          <div>
+            <div class="intent-card-title">${esc(i.label || name)}</div>
+            <div class="intent-card-name">${esc(name)}</div>
+          </div>
+          <div class="intent-card-actions">
+            <button onclick="toggleEditIntent('${esc(name)}')">Edit</button>
+            <button class="delete" onclick="deleteIntent('${esc(name)}')">Delete</button>
+          </div>
+        </div>
+        <div id="intent-edit-${name}" style="display:none;">
+          <div class="intent-field" style="margin-bottom:8px;">
+            <label>Label</label>
+            <input type="text" id="intent-label-${name}" value="${esc(i.label || '')}"
+                   style="font-family:'JetBrains Mono',monospace;font-size:12px;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);outline:none;">
+          </div>
+          <div class="intent-field" style="margin-bottom:8px;">
+            <label>System Prompt</label>
+            <textarea id="intent-prompt-${name}" rows="6">${esc(i.prompt || '')}</textarea>
+          </div>
+          <div class="intent-field-row" style="margin-bottom:8px;">
+            <div class="intent-field">
+              <label>Model</label>
+              <select id="intent-model-${name}" style="font-family:'JetBrains Mono',monospace;font-size:11px;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);">
+                <option value="" ${!i.model ? 'selected' : ''}>(none — raw transcription)</option>
+                <option value="claude-haiku-4-5-20251001" ${i.model === 'claude-haiku-4-5-20251001' ? 'selected' : ''}>Haiku 4.5 (fast, cheap)</option>
+                <option value="claude-sonnet-4-6" ${i.model === 'claude-sonnet-4-6' ? 'selected' : ''}>Sonnet 4.6 (balanced)</option>
+                <option value="claude-opus-4-6" ${i.model === 'claude-opus-4-6' ? 'selected' : ''}>Opus 4.6 (best)</option>
+              </select>
+            </div>
+            <div class="intent-field">
+              <label>Output</label>
+              <select id="intent-output-${name}" style="font-family:'JetBrains Mono',monospace;font-size:11px;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);">
+                <option value="paste" ${i.output === 'paste' ? 'selected' : ''}>Auto-paste</option>
+                <option value="clipboard" ${i.output === 'clipboard' ? 'selected' : ''}>Clipboard only</option>
+              </select>
+            </div>
+          </div>
+          <div class="intent-field" style="margin-bottom:8px;">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+              <input type="checkbox" id="intent-context-${name}" ${i.context ? 'checked' : ''} style="cursor:pointer;">
+              <span style="font-size:12px;text-transform:none;letter-spacing:0;">Inject session context</span>
+              <span style="font-size:10px;color:var(--text-dim);text-transform:none;letter-spacing:0;">(reads SESSION_STATE.md from active project)</span>
+            </label>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-primary" onclick="saveIntent('${esc(name)}')">Save</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function toggleEditIntent(name) {
+    const el = document.getElementById(`intent-edit-${name}`);
+    el.style.display = el.style.display === 'none' ? 'flex' : 'none';
+    el.style.flexDirection = 'column';
+    el.style.gap = '4px';
+  }
+
+  async function saveIntent(name) {
+    const ctxEl = document.getElementById(`intent-context-${name}`);
+    const body = {
+      name: name,
+      label: document.getElementById(`intent-label-${name}`).value,
+      prompt: document.getElementById(`intent-prompt-${name}`).value,
+      model: document.getElementById(`intent-model-${name}`).value,
+      output: document.getElementById(`intent-output-${name}`).value,
+      context: ctxEl ? ctxEl.checked : false,
+    };
+    const res = await fetch('/api/intents', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      intents[name] = data.intent;
+      renderIntents();
+    }
+  }
+
+  async function deleteIntent(name) {
+    const res = await fetch('/api/intents/' + encodeURIComponent(name), { method: 'DELETE' });
+    if (res.ok) {
+      delete intents[name];
+      renderIntents();
+    }
+  }
+
+  function addNewIntent() {
+    const name = prompt('Intent name (lowercase, no spaces):');
+    if (!name || !name.trim()) return;
+    const key = name.trim().toLowerCase().replace(/\s+/g, '_');
+    intents[key] = { name: key, label: key, prompt: '', model: 'claude-haiku-4-5-20251001', output: 'paste' };
+    renderIntents();
+    // Auto-open the editor
+    setTimeout(() => toggleEditIntent(key), 50);
+  }
+
+  // --- Transcriptions ---
+  async function loadTranscriptions() {
+    try {
+      const res = await fetch('/api/transcriptions');
+      transcriptions = await res.json();
+    } catch (e) {
+      console.error('Failed to load transcriptions:', e);
+    }
+  }
+
+  function renderTranscriptions() {
+    const list = document.getElementById('txList');
+    const count = document.getElementById('txCount');
+    count.textContent = `${transcriptions.length} transcription${transcriptions.length !== 1 ? 's' : ''}`;
+
+    if (transcriptions.length === 0) {
+      list.innerHTML = '<div class="tx-empty">No transcriptions yet. Use the voice pipeline to record something.</div>';
+      return;
+    }
+
+    // Newest first
+    const sorted = [...transcriptions].reverse();
+    const intentNames = Object.keys(intents);
+
+    list.innerHTML = sorted.map(t => {
+      const intentLabel = intents[t.intent] ? intents[t.intent].label : t.intent;
+      const showOutput = t.output !== t.raw;
+      const isSelected = selectedTxIds.has(t.id);
+      return `<div class="tx-card ${isSelected ? 'selected-combine' : ''}" data-id="${t.id}">
+        <div class="tx-header">
+          <input type="checkbox" class="tx-select" ${isSelected ? 'checked' : ''}
+                 onchange="toggleTxSelect(${t.id}, this.checked)" title="Select to combine">
+          <div class="tx-meta">
+            <span>${esc(t.time)}</span>
+            <span>${t.duration}s</span>
+            <span class="tx-intent-badge">${esc(intentLabel)}</span>
+            ${t.cost ? `<span style="color:var(--accent)">$${t.cost.toFixed(4)}</span>` : ''}
+            ${t.input_tokens ? `<span>${t.input_tokens}+${t.output_tokens} tok</span>` : ''}
+            ${t.app ? `<span>${esc(t.app)}</span>` : ''}
+          </div>
+          <button class="delete" style="font-family:Inter,sans-serif;font-size:11px;padding:3px 8px;border-radius:4px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);cursor:pointer;"
+                  onclick="deleteTranscription(${t.id})">&times;</button>
+        </div>
+        <div class="tx-text-block">
+          <div class="tx-label">Raw Transcription <span style="font-size:9px;color:var(--text-dim);text-transform:none;letter-spacing:0;">(click to edit)</span></div>
+          <div class="tx-text" contenteditable="true" id="tx-raw-${t.id}"
+               onblur="onRawEdit(${t.id}, this)">${esc(t.raw)}</div>
+        </div>
+        ${showOutput ? `<div class="tx-text-block">
+          <div class="tx-label">Processed Output</div>
+          <div class="tx-text" onclick="copyText(this, ${JSON.stringify(JSON.stringify(t.output))})">${esc(t.output)}</div>
+        </div>` : ''}
+        <div class="tx-actions">
+          <select id="tx-intent-${t.id}" style="font-family:'JetBrains Mono',monospace;">
+            ${intentNames.map(n =>
+              `<option value="${n}" ${n === t.intent ? 'selected' : ''}>${esc(intents[n].label || n)}</option>`
+            ).join('')}
+          </select>
+          <button onclick="reprocessTranscription(${t.id})">Reprocess</button>
+          <button onclick="copyText(null, ${JSON.stringify(JSON.stringify(t.raw))})">Copy Raw</button>
+          ${showOutput ? `<button onclick="copyText(null, ${JSON.stringify(JSON.stringify(t.output))})">Copy Output</button>` : ''}
+          <span class="tx-copied" id="tx-copied-${t.id}">Copied!</span>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function copyText(el, text) {
+    navigator.clipboard.writeText(text);
+    // Find nearest card and flash the copied indicator
+    const card = el ? el.closest('.tx-card') : null;
+    if (card) {
+      const id = card.dataset.id;
+      const badge = document.getElementById(`tx-copied-${id}`);
+      if (badge) {
+        badge.classList.add('show');
+        setTimeout(() => badge.classList.remove('show'), 1200);
+      }
+    }
+  }
+
+  function onRawEdit(id, el) {
+    // Update local state when user edits the raw text inline
+    const newRaw = el.innerText.trim();
+    const idx = transcriptions.findIndex(t => t.id === id);
+    if (idx !== -1 && newRaw && newRaw !== transcriptions[idx].raw) {
+      transcriptions[idx].raw = newRaw;
+    }
+  }
+
+  function toggleTxSelect(id, checked) {
+    if (checked) selectedTxIds.add(id);
+    else selectedTxIds.delete(id);
+    updateCombineBar();
+    // Toggle visual state without full re-render (preserves edits)
+    const card = document.querySelector(`.tx-card[data-id="${id}"]`);
+    if (card) card.classList.toggle('selected-combine', checked);
+  }
+
+  function updateCombineBar() {
+    const bar = document.getElementById('txCombineBar');
+    const countEl = document.getElementById('txCombineCount');
+    if (selectedTxIds.size >= 2) {
+      bar.classList.add('visible');
+      countEl.textContent = `${selectedTxIds.size} selected`;
+    } else {
+      bar.classList.remove('visible');
+    }
+  }
+
+  function clearSelection() {
+    selectedTxIds.clear();
+    updateCombineBar();
+    renderTranscriptions();
+  }
+
+  async function combineSelected() {
+    const ids = [...selectedTxIds].sort((a, b) => a - b);
+    try {
+      const res = await fetch('/api/transcriptions/combine', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        transcriptions.push(data.transcription);
+        selectedTxIds.clear();
+        updateCombineBar();
+        renderTranscriptions();
+      }
+    } catch (e) {
+      console.error('Combine failed:', e);
+    }
+  }
+
+  async function reprocessTranscription(id) {
+    const sel = document.getElementById(`tx-intent-${id}`);
+    if (!sel) return;
+    const intent = sel.value;
+
+    // Get current raw text (may have been edited inline)
+    const rawEl = document.getElementById(`tx-raw-${id}`);
+    const raw = rawEl ? rawEl.innerText.trim() : undefined;
+
+    sel.disabled = true;
+    const btn = sel.nextElementSibling;
+    const origText = btn.textContent;
+    btn.textContent = 'Processing...';
+    btn.disabled = true;
+
+    try {
+      const body = { id, intent };
+      if (raw) body.raw = raw;
+      const res = await fetch('/api/transcriptions/reprocess', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const idx = transcriptions.findIndex(t => t.id === id);
+        if (idx !== -1) transcriptions[idx] = data.transcription;
+        renderTranscriptions();
+      }
+    } catch (e) {
+      console.error('Reprocess failed:', e);
+    } finally {
+      sel.disabled = false;
+      btn.textContent = origText;
+      btn.disabled = false;
+    }
+  }
+
+  async function deleteTranscription(id) {
+    const res = await fetch(`/api/transcriptions/${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      transcriptions = transcriptions.filter(t => t.id !== id);
+      renderTranscriptions();
+    }
+  }
+
+  async function clearTranscriptions() {
+    if (!confirm('Clear all transcriptions?')) return;
+    const res = await fetch('/api/transcriptions', { method: 'DELETE' });
+    if (res.ok) {
+      transcriptions = [];
+      renderTranscriptions();
+    }
+  }
+
+  // --- Word Corrections ---
+  async function loadCorrections() {
+    try {
+      const res = await fetch('/api/corrections');
+      corrections = await res.json();
+    } catch (e) {
+      console.error('Failed to load corrections:', e);
+    }
+  }
+
+  function renderCorrections() {
+    const body = document.getElementById('corrBody');
+    const count = document.getElementById('corrCount');
+    const keys = Object.keys(corrections).sort();
+    count.textContent = `${keys.length} correction${keys.length !== 1 ? 's' : ''}`;
+
+    if (keys.length === 0) {
+      body.innerHTML = '<tr><td colspan="5" class="corr-empty">No corrections yet. Add words Whisper consistently gets wrong.</td></tr>';
+      return;
+    }
+
+    body.innerHTML = keys.map(k => {
+      const entry = corrections[k];
+      const to = typeof entry === 'string' ? entry : entry.to;
+      const mode = typeof entry === 'string' ? 'whole' : (entry.mode || 'whole');
+      const isPartial = mode === 'partial';
+      return `<tr>
+        <td><code style="font-family:'JetBrains Mono',monospace;background:var(--surface);padding:2px 6px;border-radius:3px;">${esc(k)}</code></td>
+        <td class="arrow">&rarr;</td>
+        <td><code style="font-family:'JetBrains Mono',monospace;background:rgba(74,222,128,0.1);padding:2px 6px;border-radius:3px;color:var(--green);">${esc(to)}</code></td>
+        <td style="text-align:center;width:80px;">
+          <label style="font-size:10px;color:${isPartial ? 'var(--accent)' : 'var(--text-dim)'};cursor:pointer;display:flex;align-items:center;gap:4px;justify-content:center;" title="When checked, matches within longer sentences. When unchecked, only matches when the entire input is this phrase.">
+            <input type="checkbox" ${isPartial ? 'checked' : ''} onchange="toggleCorrectionMode('${esc(k)}', this.checked)" style="cursor:pointer;">
+            <span>${isPartial ? 'in phrase' : 'whole'}</span>
+          </label>
+        </td>
+        <td class="actions"><button onclick="deleteCorrection('${esc(k)}')">&times;</button></td>
+      </tr>`;
+    }).join('');
+  }
+
+  async function toggleCorrectionMode(key, isPartial) {
+    const entry = corrections[key];
+    const to = typeof entry === 'string' ? entry : entry.to;
+    const mode = isPartial ? 'partial' : 'whole';
+    const res = await fetch('/api/corrections', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: key, to, mode }),
+    });
+    if (res.ok) {
+      corrections[key] = { to, mode };
+      renderCorrections();
+    }
+  }
+
+  async function addCorrection() {
+    const fromEl = document.getElementById('corrFrom');
+    const toEl = document.getElementById('corrTo');
+    const modeEl = document.getElementById('corrMode');
+    const fromVal = fromEl.value.trim();
+    const toVal = toEl.value.trim();
+    const mode = modeEl && modeEl.checked ? 'partial' : 'whole';
+    if (!fromVal || !toVal) return;
+
+    try {
+      const res = await fetch('/api/corrections', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from: fromVal, to: toVal, mode }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        corrections[data.from] = { to: data.to, mode: data.mode };
+        fromEl.value = '';
+        toEl.value = '';
+        renderCorrections();
+        fromEl.focus();
+      } else {
+        console.error('Add correction failed:', res.status, await res.text());
+      }
+    } catch (e) {
+      console.error('Add correction error:', e);
+    }
+  }
+
+  async function deleteCorrection(key) {
+    const res = await fetch(`/api/corrections/${encodeURIComponent(key)}`, { method: 'DELETE' });
+    if (res.ok) {
+      delete corrections[key];
+      renderCorrections();
+    }
+  }
+
+  // Enter key to submit in correction inputs
+  (function() {
+    for (const id of ['corrFrom', 'corrTo']) {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') addCorrection(); });
+    }
+  })();
+
+  // --- Usage Dashboard ---
+  async function loadAndRenderUsage() {
+    const wrap = document.getElementById('usageWrap');
+    try {
+      const res = await fetch('/api/usage');
+      const u = await res.json();
+      renderUsage(u);
+    } catch (e) {
+      wrap.innerHTML = '<div style="padding:40px;text-align:center;color:var(--red);font-size:13px;">Failed to load usage data</div>';
+    }
+  }
+
+  function renderUsage(u) {
+    const wrap = document.getElementById('usageWrap');
+    const totalTokens = u.total_input_tokens + u.total_output_tokens;
+    const minutes = Math.floor(u.total_duration / 60);
+    const secs = Math.round(u.total_duration % 60);
+    const durationStr = minutes > 0 ? `${minutes}m ${secs}s` : `${secs}s`;
+
+    // Build intent breakdown rows
+    const intentKeys = Object.keys(u.by_intent).sort((a, b) =>
+      u.by_intent[b].cost - u.by_intent[a].cost
+    );
+    const maxCost = Math.max(...intentKeys.map(k => u.by_intent[k].cost), 0.000001);
+
+    const rows = intentKeys.map(k => {
+      const d = u.by_intent[k];
+      const label = intents[k] ? intents[k].label : k;
+      const pct = maxCost > 0 ? (d.cost / maxCost * 100) : 0;
+      return `<tr>
+        <td>${esc(label)}<br><span style="font-size:10px;color:var(--text-dim)">${esc(k)}</span></td>
+        <td class="num">${d.count}</td>
+        <td class="num">${d.input_tokens.toLocaleString()}</td>
+        <td class="num">${d.output_tokens.toLocaleString()}</td>
+        <td class="num" style="color:var(--accent)">$${d.cost.toFixed(4)}
+          <div class="usage-bar"><div class="usage-bar-fill" style="width:${pct}%"></div></div>
+        </td>
+        <td class="num">${d.duration.toFixed(1)}s</td>
+      </tr>`;
+    }).join('');
+
+    wrap.innerHTML = `
+      <div class="usage-cards">
+        <div class="usage-card">
+          <div class="usage-card-label">Total Spend</div>
+          <div class="usage-card-value cost">$${u.total_cost.toFixed(4)}</div>
+          <div class="usage-card-sub">${u.total_transcriptions} transcription${u.total_transcriptions !== 1 ? 's' : ''}</div>
+        </div>
+        <div class="usage-card">
+          <div class="usage-card-label">Total Tokens</div>
+          <div class="usage-card-value tokens">${totalTokens.toLocaleString()}</div>
+          <div class="usage-card-sub">${u.total_input_tokens.toLocaleString()} in / ${u.total_output_tokens.toLocaleString()} out</div>
+        </div>
+        <div class="usage-card">
+          <div class="usage-card-label">Transcriptions</div>
+          <div class="usage-card-value count">${u.total_transcriptions}</div>
+          <div class="usage-card-sub">${durationStr} total audio</div>
+        </div>
+        <div class="usage-card">
+          <div class="usage-card-label">Avg Cost / Call</div>
+          <div class="usage-card-value cost">$${u.total_transcriptions > 0 ? (u.total_cost / u.total_transcriptions).toFixed(4) : '0.0000'}</div>
+          <div class="usage-card-sub">${u.total_transcriptions > 0 ? Math.round(totalTokens / u.total_transcriptions) : 0} avg tokens</div>
+        </div>
+      </div>
+
+      ${intentKeys.length > 0 ? `
+        <div class="usage-section-title">Cost Breakdown by Intent</div>
+        <table class="usage-table">
+          <thead>
+            <tr>
+              <th>Intent</th>
+              <th class="num">Calls</th>
+              <th class="num">Input Tok</th>
+              <th class="num">Output Tok</th>
+              <th class="num">Cost</th>
+              <th class="num">Audio</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      ` : '<div style="padding:20px;text-align:center;color:var(--text-dim);font-size:13px;">No usage data yet</div>'}
+    `;
+  }
+
+  // --- Boot ---
+  init();
+</script>
+</body>
+</html>
