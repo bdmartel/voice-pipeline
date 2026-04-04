@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Voice Pipeline — Mobile</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #0a0a0a;
+    --surface: #141414;
+    --surface2: #1e1e1e;
+    --border: #2a2a2a;
+    --text: #e0e0e0;
+    --text-dim: #888;
+    --accent: #ffd700;
+    --accent-dim: #b8960040;
+    --green: #4ade80;
+    --red: #f87171;
+    --blue: #60a5fa;
+  }
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Header */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  header h1 { font-size: 15px; font-weight: 600; }
+  .status { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-dim); }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); }
+  .status-dot.connected { background: var(--green); box-shadow: 0 0 6px var(--green); }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tab-btn {
+    flex: 1;
+    padding: 12px 8px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* Tab content */
+  .tab-pane { display: none; padding: 12px 16px; }
+  .tab-pane.active { display: block; }
+
+  /* Intent cards */
+  .intent-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+  .intent-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 14px;
+    cursor: pointer;
+  }
+  .intent-name {
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .intent-model {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    padding: 2px 6px;
+    background: var(--surface2);
+    border-radius: 4px;
+  }
+  .intent-arrow {
+    font-size: 12px;
+    color: var(--text-dim);
+    transition: transform 0.2s;
+  }
+  .intent-card.open .intent-arrow { transform: rotate(90deg); }
+  .intent-body {
+    display: none;
+    padding: 0 14px 14px;
+    border-top: 1px solid var(--border);
+  }
+  .intent-card.open .intent-body { display: block; padding-top: 12px; }
+
+  /* Form fields */
+  label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-bottom: 4px;
+    margin-top: 12px;
+  }
+  label:first-child { margin-top: 0; }
+  textarea, input[type="text"], select {
+    width: 100%;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    padding: 10px;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    resize: vertical;
+  }
+  textarea:focus, input:focus, select:focus { outline: none; border-color: var(--accent); }
+  textarea { min-height: 120px; line-height: 1.5; }
+  select {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 28px;
+  }
+
+  /* Buttons */
+  .btn {
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 10px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-save {
+    background: var(--accent-dim);
+    color: var(--accent);
+    border-color: var(--accent);
+    width: 100%;
+    margin-top: 14px;
+  }
+  .btn-save:active { background: var(--accent); color: var(--bg); }
+  .btn-save.saved { background: rgba(74,222,128,0.15); color: var(--green); border-color: var(--green); }
+
+  /* Transcription list */
+  .tx-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+  }
+  .tx-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .tx-intent {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: var(--accent-dim);
+    color: var(--accent);
+  }
+  .tx-time {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .tx-raw { font-size: 13px; color: var(--text-dim); margin-bottom: 4px; }
+  .tx-result { font-size: 14px; color: var(--text); line-height: 1.5; }
+  .tx-copy {
+    font-family: inherit;
+    font-size: 12px;
+    margin-top: 8px;
+    padding: 6px 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-dim);
+    cursor: pointer;
+  }
+  .tx-copy:active { border-color: var(--green); color: var(--green); }
+
+  /* Empty state */
+  .empty { text-align: center; padding: 40px 20px; color: var(--text-dim); font-size: 13px; }
+
+  /* Corrections */
+  .corr-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 6px;
+    font-size: 13px;
+  }
+  .corr-from { color: var(--red); font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+  .corr-arrow { color: var(--text-dim); }
+  .corr-to { color: var(--green); font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+  .corr-del {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 4px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Voice Pipeline</h1>
+  <div class="status">
+    <span id="statusText">Connecting...</span>
+    <div class="status-dot" id="statusDot"></div>
+  </div>
+</header>
+
+<div class="tabs">
+  <button class="tab-btn active" data-tab="intents">Intents</button>
+  <button class="tab-btn" data-tab="transcriptions">History</button>
+  <button class="tab-btn" data-tab="corrections">Corrections</button>
+</div>
+
+<!-- Intents tab -->
+<div class="tab-pane active" id="pane-intents">
+  <div id="intentCards"></div>
+</div>
+
+<!-- Transcriptions tab -->
+<div class="tab-pane" id="pane-transcriptions">
+  <div id="txCards"></div>
+</div>
+
+<!-- Corrections tab -->
+<div class="tab-pane" id="pane-corrections">
+  <div id="corrCards"></div>
+  <div style="display:flex;gap:6px;margin-top:12px;align-items:center;">
+    <input type="text" id="corrFrom" placeholder="Wrong..." style="flex:1;font-size:14px;padding:10px;">
+    <span style="color:var(--text-dim);">&rarr;</span>
+    <input type="text" id="corrTo" placeholder="Correct..." style="flex:1;font-size:14px;padding:10px;">
+    <button class="btn" onclick="addCorrection()" style="flex-shrink:0;padding:10px 14px;">+</button>
+  </div>
+</div>
+
+<script>
+const API = window.location.origin;
+let intents = {};
+let corrections = {};
+
+// --- Tabs ---
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('pane-' + btn.dataset.tab).classList.add('active');
+    if (btn.dataset.tab === 'transcriptions') loadTranscriptions();
+    if (btn.dataset.tab === 'corrections') loadCorrections();
+  });
+});
+
+// --- Connection status via SSE ---
+function connectStream() {
+  const es = new EventSource(API + '/api/stream');
+  es.onopen = () => {
+    document.getElementById('statusDot').classList.add('connected');
+    document.getElementById('statusText').textContent = 'Connected';
+  };
+  es.onerror = () => {
+    document.getElementById('statusDot').classList.remove('connected');
+    document.getElementById('statusText').textContent = 'Disconnected';
+    setTimeout(connectStream, 3000);
+  };
+  es.onmessage = (e) => {
+    // New transcription arrived — refresh if on that tab
+    if (document.querySelector('[data-tab="transcriptions"]').classList.contains('active')) {
+      loadTranscriptions();
+    }
+  };
+}
+
+// --- Intents ---
+async function loadIntents() {
+  try {
+    const r = await fetch(API + '/api/intents');
+    intents = await r.json();
+    renderIntents();
+  } catch(e) { console.error('Load intents failed:', e); }
+}
+
+function renderIntents() {
+  const el = document.getElementById('intentCards');
+  const names = Object.keys(intents);
+  if (!names.length) { el.innerHTML = '<div class="empty">No intents configured</div>'; return; }
+  el.innerHTML = names.map(name => {
+    const i = intents[name];
+    return `<div class="intent-card" id="icard-${name}">
+      <div class="intent-header" onclick="toggleIntent('${name}')">
+        <div>
+          <span class="intent-name">${esc(i.label || name)}</span>
+          ${i.model ? `<span class="intent-model">${esc(i.model)}</span>` : ''}
+        </div>
+        <span class="intent-arrow">&#9654;</span>
+      </div>
+      <div class="intent-body">
+        <label>Name</label>
+        <input type="text" value="${esc(name)}" disabled style="opacity:0.5;">
+        <label>Label</label>
+        <input type="text" id="ilabel-${name}" value="${esc(i.label || '')}">
+        <label>Model</label>
+        <select id="imodel-${name}">
+          <option value="" ${!i.model ? 'selected' : ''}>(none — raw passthrough)</option>
+          <option value="claude-haiku-4-5-20251001" ${i.model === 'claude-haiku-4-5-20251001' ? 'selected' : ''}>Haiku 4.5</option>
+          <option value="claude-sonnet-4-6" ${i.model === 'claude-sonnet-4-6' ? 'selected' : ''}>Sonnet 4.6</option>
+        </select>
+        <label>Prompt</label>
+        <textarea id="iprompt-${name}" rows="8">${esc(i.prompt || '')}</textarea>
+        <label>Output</label>
+        <select id="ioutput-${name}">
+          <option value="paste" ${i.output === 'paste' ? 'selected' : ''}>Paste to clipboard</option>
+          <option value="type" ${i.output === 'type' ? 'selected' : ''}>Type keystrokes</option>
+        </select>
+        <button class="btn btn-save" id="isave-${name}" onclick="saveIntent('${name}')">Save</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleIntent(name) {
+  document.getElementById('icard-' + name).classList.toggle('open');
+}
+
+async function saveIntent(name) {
+  const btn = document.getElementById('isave-' + name);
+  const data = {
+    name: name,
+    label: document.getElementById('ilabel-' + name).value,
+    model: document.getElementById('imodel-' + name).value,
+    prompt: document.getElementById('iprompt-' + name).value,
+    output: document.getElementById('ioutput-' + name).value
+  };
+  if (intents[name] && intents[name].context) data.context = true;
+  try {
+    await fetch(API + '/api/intents', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
+    btn.textContent = 'Saved!';
+    btn.classList.add('saved');
+    setTimeout(() => { btn.textContent = 'Save'; btn.classList.remove('saved'); }, 1500);
+    intents[name] = data;
+  } catch(e) { btn.textContent = 'Error'; }
+}
+
+// --- Transcriptions ---
+async function loadTranscriptions() {
+  try {
+    const r = await fetch(API + '/api/transcriptions');
+    const txs = await r.json();
+    const el = document.getElementById('txCards');
+    if (!txs.length) { el.innerHTML = '<div class="empty">No transcriptions yet</div>'; return; }
+    el.innerHTML = txs.slice().reverse().map(tx => {
+      const t = new Date(tx.timestamp * 1000);
+      const time = t.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+      return `<div class="tx-item">
+        <div class="tx-meta">
+          <span class="tx-intent">${esc(tx.intent || 'raw')}</span>
+          <span class="tx-time">${time}</span>
+        </div>
+        ${tx.raw !== tx.result ? `<div class="tx-raw">${esc(tx.raw)}</div>` : ''}
+        <div class="tx-result">${esc(tx.result || tx.raw)}</div>
+        <button class="tx-copy" onclick="copyText(this, '${esc(tx.result || tx.raw).replace(/'/g, "\\'")}')">Copy</button>
+      </div>`;
+    }).join('');
+  } catch(e) { console.error('Load tx failed:', e); }
+}
+
+function copyText(btn, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy'; }, 1200);
+  });
+}
+
+// --- Corrections ---
+async function loadCorrections() {
+  try {
+    const r = await fetch(API + '/api/corrections');
+    corrections = await r.json();
+    renderCorrections();
+  } catch(e) { console.error('Load corrections failed:', e); }
+}
+
+function renderCorrections() {
+  const el = document.getElementById('corrCards');
+  const keys = Object.keys(corrections);
+  if (!keys.length) { el.innerHTML = '<div class="empty">No corrections</div>'; return; }
+  el.innerHTML = keys.map(from => {
+    const to = typeof corrections[from] === 'string' ? corrections[from] : corrections[from].to;
+    return `<div class="corr-item">
+      <span class="corr-from">${esc(from)}</span>
+      <span class="corr-arrow">&rarr;</span>
+      <span class="corr-to">${esc(to)}</span>
+      <button class="corr-del" onclick="deleteCorrection('${esc(from)}')">&times;</button>
+    </div>`;
+  }).join('');
+}
+
+async function addCorrection() {
+  const from = document.getElementById('corrFrom').value.trim();
+  const to = document.getElementById('corrTo').value.trim();
+  if (!from || !to) return;
+  await fetch(API + '/api/corrections', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({wrong: from, correct: to})
+  });
+  document.getElementById('corrFrom').value = '';
+  document.getElementById('corrTo').value = '';
+  loadCorrections();
+}
+
+async function deleteCorrection(from) {
+  await fetch(API + '/api/corrections/' + encodeURIComponent(from), { method: 'DELETE' });
+  loadCorrections();
+}
+
+// --- Helpers ---
+function esc(s) { return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') : ''; }
+
+// --- Init ---
+loadIntents();
+connectStream();
+</script>
+</body>
+</html>

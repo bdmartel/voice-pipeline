@@ -73,6 +73,7 @@ CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
 TRANSCRIPTIONS_PATH = os.path.join(BASE_DIR, "transcriptions.json")
 USAGE_PATH = os.path.join(BASE_DIR, "usage.json")
 UI_PATH = os.path.join(BASE_DIR, "ui.html")
+MOBILE_PATH = os.path.join(BASE_DIR, "mobile.html")
 
 # ---------------------------------------------------------------------------
 # Keycode → name lookup
@@ -1149,6 +1150,20 @@ class MapperHandler(BaseHTTPRequestHandler):
                 self.send_error(404, "ui.html not found")
             return
 
+        # Serve mobile UI
+        if path == "/mobile":
+            try:
+                with open(MOBILE_PATH, "rb") as f:
+                    content = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", len(content))
+                self.end_headers()
+                self.wfile.write(content)
+            except FileNotFoundError:
+                self.send_error(404, "mobile.html not found")
+            return
+
         # Device list
         if path == "/api/devices":
             self.send_json(devices)
@@ -1533,7 +1548,7 @@ def main():
 
     # Start HTTP server
     print(f"\n[server]")
-    server = ThreadedHTTPServer(("127.0.0.1", port), MapperHandler)
+    server = ThreadedHTTPServer(("0.0.0.0", port), MapperHandler)
     server_thread = threading.Thread(target=server.serve_forever, daemon=True)
     server_thread.start()
     print(f"  UI: http://localhost:{port}")
