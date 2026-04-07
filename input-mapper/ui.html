@@ -1696,7 +1696,7 @@
         </div>
         ${showOutput ? `<div class="tx-text-block">
           <div class="tx-label">Processed Output</div>
-          <div class="tx-text" onclick="copyText(this, ${JSON.stringify(JSON.stringify(t.output))})">${esc(t.output)}</div>
+          <div class="tx-text" onclick="copyField(${t.id}, 'output')">${esc(t.output)}</div>
         </div>` : ''}
         <div class="tx-actions">
           <select id="tx-intent-${t.id}" style="font-family:'JetBrains Mono',monospace;">
@@ -1705,27 +1705,26 @@
             ).join('')}
           </select>
           <button onclick="reprocessTranscription(${t.id})">Reprocess</button>
-          <button onclick="copyText(null, ${JSON.stringify(JSON.stringify(t.raw))})">Copy Raw</button>
-          ${showOutput ? `<button onclick="copyText(null, ${JSON.stringify(JSON.stringify(t.output))})">Copy Output</button>` : ''}
+          <button onclick="copyField(${t.id}, 'raw')">Copy Raw</button>
+          ${showOutput ? `<button onclick="copyField(${t.id}, 'output')">Copy Output</button>` : ''}
           <span class="tx-copied" id="tx-copied-${t.id}">Copied!</span>
         </div>
       </div>`;
     }).join('');
   }
 
-  function copyText(el, text) {
-    navigator.clipboard.writeText(text);
-    // Find nearest card and flash the copied indicator
-    const card = el ? el.closest('.tx-card') : null;
-    if (card) {
-      const id = card.dataset.id;
+  function copyField(id, field) {
+    const t = transcriptions.find(x => x.id === id);
+    if (!t) return;
+    navigator.clipboard.writeText(t[field]).then(() => {
       const badge = document.getElementById(`tx-copied-${id}`);
       if (badge) {
         badge.classList.add('show');
         setTimeout(() => badge.classList.remove('show'), 1200);
       }
-    }
+    });
   }
+
 
   function onRawEdit(id, el) {
     // Update local state when user edits the raw text inline
